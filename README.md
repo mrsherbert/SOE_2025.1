@@ -22,15 +22,23 @@ Eu vou ir pegar as referências com o pessoal que foca mais na área de visão c
 
 A fazer-
 
-Documento PC1
+Implementar NCNN na raspberry pi 3
+
+Implementar modulo MCP-CAN
+
+Implementar no veículo de pequena escala
+
+Documento PC2
+
+Documento PC1-feito 
 
 Adquirir melhores imagens do veículo
 
-Adquirir estrutura do software
+Adquirir estrutura do software-feito
 
-Adquirir o modelo
+Adquirir o modelo-feito
 
-Adquirir a teoria por trás do modelo
+Adquirir a teoria por trás do modelo-feito
 
 Adquirir o método de treinamento do modelo pra citar no documento
 
