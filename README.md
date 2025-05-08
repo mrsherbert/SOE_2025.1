@@ -22,6 +22,8 @@ Eu vou ir pegar as referências com o pessoal que foca mais na área de visão c
 
 A fazer-
 
+Refatorar código para utilizar OpenCV em vez de sdk zed (requer placa nvidia)
+
 Implementar NCNN na raspberry pi 3
 
 Implementar modulo MCP-CAN
