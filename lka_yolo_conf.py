@@ -342,6 +342,7 @@ def main():
     camera = sl.Camera()
     init_params = sl.InitParameters()
     
+    #Opening and configuring zed camera, not strictly necessary 
     init_params.camera_resolution = sl.RESOLUTION.HD720
     init_params.camera_fps = 30
     init_params.depth_mode = sl.DEPTH_MODE.ULTRA
@@ -355,87 +356,108 @@ def main():
     if status != sl.ERROR_CODE.SUCCESS:
         print(f"Erro ao abrir a câmera ZED: {repr(status)}")
         exit()
-        
+    
+    #More camera configurations
     camera.set_camera_settings(sl.VIDEO_SETTINGS.GAIN, -1)
     camera.set_camera_settings(sl.VIDEO_SETTINGS.EXPOSURE, -1)
     camera.set_camera_settings(sl.VIDEO_SETTINGS.WHITEBALANCE_AUTO, 1)
     
+    #Used to get the images and see if theres erros, not necessary
     image = sl.Mat()
     runtime_params = sl.RuntimeParameters()
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    #Our device can only run in cpu
+    #device = "cuda" if torch.cuda.is_available() else "cpu"
+    device ="cpu"
     print(f"Dispositivo em uso: {device}")
 
-    model = YOLO("./best.pt").to(device)
+    #Selecting ncnn model, you must specify you are predicting with it
+    model = YOLO("./best_ncnn_model").to(device)
 
     image_width, image_height = IMG_W, IMG_H
     
-    almost_can = inicializar_serial()
-    if not almost_can:
-        return
+    #This function is utilized to communicate with the ECU's via usb
+    #almost_can = inicializar_serial()
+    #if not almost_can:
+    #    return
     
     try:
         while True:
             try:
-                error_code = camera.grab(runtime_params)
+                #error_code = camera.grab(runtime_params)
 
-                if error_code == sl.ERROR_CODE.SUCCESS:
-                    camera.retrieve_image(image, sl.VIEW.LEFT)
-                    frame = image.get_data()
+                #if error_code == sl.ERROR_CODE.SUCCESS:
 
-                    warped_frame, perspective_transform = warp(frame)
-                    resized_warped_frame = resize_for_screen(warped_frame)
-                    cv2.imshow('Warped Image', resized_warped_frame)
+                #Gets the image from the camera
+                camera.retrieve_image(image, sl.VIEW.LEFT)
+                frame = image.get_data()
 
-                    frame_rgb = cv2.cvtColor(warped_frame, cv2.COLOR_RGBA2RGB)
+                #First resizes the image for the size expected in functions, then makes the view bird eye
+                warped_frame, perspective_transform = warp(frame)
+                #Makes the image a good size to show on screen
+                resized_warped_frame = resize_for_screen(warped_frame)
+                cv2.imshow('Warped Image', resized_warped_frame)
 
-                    results = model.predict(
-                        source=frame_rgb,
-                        imgsz=416,
-                        device=device
-                    )
+                #Makes the image RGB from RGBA to utilize with YOLO
+                frame_rgb = cv2.cvtColor(warped_frame, cv2.COLOR_RGBA2RGB)
 
-                    combined_mask = np.zeros((image_height, image_width), dtype=np.uint8)
+                #Makes polygons around poossible lane markings
+                results = model.predict(
+                    source=frame_rgb,
+                    imgsz=416,
+                    device=device
+                )
 
-                    for result in results:
-                        masks = result.masks  
-                        confidences = result.boxes.conf if result.boxes is not None else None
-                        if masks is not None and masks.data is not None and confidences is not None:
-                            for mask, conf in zip(masks.data, confidences):
-                                if conf >= CONF_THRESHOLD:
-                                    mask = mask.cpu().numpy()
-                                    mask = (mask * 255).astype(np.uint8)
-                                    resized_mask = cv2.resize(mask, (image_width, image_height), interpolation=cv2.INTER_NEAREST)
-                                    combined_mask = cv2.add(combined_mask, resized_mask)
+                #Makes a white mask that will be added with the found polygons
+                combined_mask = np.zeros((image_height, image_width), dtype=np.uint8)
 
-                    cv2.imshow('Binary Image', combined_mask)
-                    
-                    leftx, lefty, rightx, righty = find_lane_pixels_using_histogram(combined_mask)
-                    left_fit, right_fit, left_fitx, right_fitx, ploty = fit_poly(combined_mask, leftx, lefty, rightx, righty)
-                    # left_curverad, right_curverad = measure_curvature_meters(combined_mask, left_fitx, right_fitx, ploty)
+                #Gets the mask given from the model and compares the confidence of the found points with a treshold
+                #Then makes an image of the combination of where the polygons are and the white mask
+                for result in results:
+                    masks = result.masks  
+                    confidences = result.boxes.conf if result.boxes is not None else None
+                    if masks is not None and masks.data is not None and confidences is not None:
+                        for mask, conf in zip(masks.data, confidences):
+                            if conf >= CONF_THRESHOLD:
+                                mask = mask.cpu().numpy()
+                                mask = (mask * 255).astype(np.uint8)
+                                resized_mask = cv2.resize(mask, (image_width, image_height), interpolation=cv2.INTER_NEAREST)
+                                combined_mask = cv2.add(combined_mask, resized_mask)
 
-                    # vehicle_position = measure_position_meters(combined_mask, left_fit, right_fit)
+                cv2.imshow('Binary Image', combined_mask)
+                
+                #Utilizing an histogram the position of each lane is found by finding the two local maximuns
+                leftx, lefty, rightx, righty = find_lane_pixels_using_histogram(combined_mask)
+                
+                #Fits a line through the found points from the histogram
+                left_fit, right_fit, left_fitx, right_fitx, ploty = fit_poly(combined_mask, leftx, lefty, rightx, righty)
+                # left_curverad, right_curverad = measure_curvature_meters(combined_mask, left_fitx, right_fitx, ploty)
+                
+                #Utilizing the found lines gets the curvature
+                left_curverad, right_curverad = measure_curvature_meters(ploty, left_fitx, right_fitx)
 
-                    left_curverad, right_curverad = measure_curvature_meters(ploty, left_fitx, right_fitx)
+                #Gets the vehicle offset
+                vehicle_position = measure_position_meters(left_fit, right_fit)
 
-                    vehicle_position = measure_position_meters(left_fit, right_fit)
+                #Returns a value between 0-50 for the steering angle
+                steering_angle = calcular_angulo_do_volante(vehicle_position)
+                steering_angle_int = int(steering_angle)
+                
+                #Shows the lane detection result
+                lane_overlay, avg_curvature = project_lane_info(
+                    frame[:, :, 0:3], combined_mask, ploty, left_fitx, right_fitx,
+                    perspective_transform, left_curverad, right_curverad, vehicle_position
+                )
+                resized_lane_overlay = resize_for_screen(lane_overlay)
+                cv2.imshow('Lane Detection Result', resized_lane_overlay)
+                
+                cv2.waitKey(1)
 
-                    steering_angle = calcular_angulo_do_volante(vehicle_position)
-                    steering_angle_int = int(steering_angle)
-                    
-                    lane_overlay, avg_curvature = project_lane_info(
-                        frame[:, :, 0:3], combined_mask, ploty, left_fitx, right_fitx,
-                        perspective_transform, left_curverad, right_curverad, vehicle_position
-                    )
-                    resized_lane_overlay = resize_for_screen(lane_overlay)
-                    cv2.imshow('Lane Detection Result', resized_lane_overlay)
-                    
-                    cv2.waitKey(1)
+                #Sends steering angle to CAN
+                #enviar_dado(almost_can, steering_angle_int, 0x00)
 
-                    enviar_dado(almost_can, steering_angle_int, 0x00)
-
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
             except KeyboardInterrupt:
                 print("Execução interrompida pelo usuário.")
                 break
@@ -447,7 +469,7 @@ def main():
         camera.close()
         print("Liberando memória da GPU...")
         torch.cuda.empty_cache()
-        almost_can.serial.close()
+        #almost_can.serial.close()
         import gc
         gc.collect()
         print("Recursos liberados. Execução finalizada.")
