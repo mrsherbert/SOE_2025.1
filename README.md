@@ -46,4 +46,4 @@ Adquirir o método de treinamento do modelo pra citar no documento
 
 Adquirir vídeo do sistema funcionando pra colocar no documento
 
-Adquirir artigos sobre (vou ver se ja tem uma lista)
+Adquirir artigos sobre (vou ver se ja tem uma lista) - feito
