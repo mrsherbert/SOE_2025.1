@@ -1,0 +1,58 @@
+def binary_thresholder(img):
+
+    start = time.time()
+    # TODO: Filtro HSV
+
+    hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    # Definindo limites para o branco no espaco HSV
+    lower_white_hsv = np.array([0, 0, 210], dtype=np.uint8)
+    upper_white_hsv = np.array([180, 10, 255], dtype=np.uint8)
+
+    lower_white_hsv_inv = np.array([0, 0, 120], dtype=np.uint8)
+    upper_white_hsv_inv = np.array([180, 40, 255], dtype=np.uint8)
+    
+    # Aplicando a mascara para detectar branco no espaco HSV
+    mask_white_hsv = cv2.inRange(hsv, lower_white_hsv, upper_white_hsv)
+    mask_white_hsv_inv = cv2.inRange(hsv, lower_white_hsv_inv, upper_white_hsv_inv)
+    #mask_white_hsv_inv = cv2.bitwise_not(mask_white_hsv_inv)
+    
+    # Threshold adaptativo HSV
+    adapt_white_hsv = cv2.adaptiveThreshold(hsv[:,:,2], 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 161, -27)
+
+
+    # TODO: Fim Filtro HSV
+
+    # Aplicado erosao na imagem gerada pelo HSV Adaptativo, eliminar pequenos ruIdos
+    kernel_erode = np.ones((5,5), np.uint8)
+    adapt_white_hsv = cv2.erode(adapt_white_hsv, kernel_erode, iterations=1)
+    
+    # Aplicacao de Filtro de mediana na Maskara Inv, eliminar ruIdos com caracterIsticas sal e pimenta
+    median_kernel_size = 5  # Deve ser um numero Impar, como 3, 5, 7
+    mask_white_hsv_inv = cv2.medianBlur(mask_white_hsv_inv, median_kernel_size)
+
+    # Aplicacao de Filtro de mediana na Mascara do HSV normal, eliminar ruIdos com caracterIsticas sal e pimenta  
+    median_kernel_size = 17  # Deve ser um numero Impar, como 3, 5, 7
+    mask_white_hsv = cv2.medianBlur(mask_white_hsv, median_kernel_size)
+
+    # Combinando os filtros e definido pixels que sao selecionados (no mInimo o pixel branco tem que aparecer em 2 filtros)
+    combined = mask_white_hsv //255 + mask_white_hsv_inv //255 + adapt_white_hsv// 255
+    combined[combined < 2] = 0
+    combined[combined >= 2] = 1
+    # Convertendo a mascara para valores 0 ou 255
+    combined = (combined * 255).astype(np.uint8)
+
+    # Aplicando filtro de mediana na imagem combinada
+    median_kernel_size = 19  # Deve ser um numero Impar, como 3, 5, 7
+    combined = cv2.medianBlur(combined, median_kernel_size)
+
+ 
+    # Aplicando processamento morfologico de dilatacao para realcar as areas brancas
+    kernel_dilate = np.ones((8, 8), np.uint8)  # Kernel menor para erosao
+    img_dilate = cv2.dilate(combined, kernel_dilate, iterations=1)
+
+    #cv2.imshow('Masc', cv2.resize(mask_white_hsv, (200, 500)))
+    #cv2.imshow('Adaptativo', cv2.resize(adapt_white_hsv, (200, 500)))
+    #cv2.imshow('INV', cv2.resize(mask_white_hsv_inv, (200, 500))) 
+    
+    end = time.time()
+    return img_dilate, end - start
