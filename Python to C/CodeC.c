@@ -1,14 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <errno.h>
-#include <opencv2>
-#include <iostream>
-#include <vector>
-#include <string>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+#include <glob.h>
 
 // ----------- MACROS / CONSTANTES ------------------------------------------------
 // resolução de trabalho (warp, YOLO, máscaras)
