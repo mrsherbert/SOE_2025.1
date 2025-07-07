@@ -66,7 +66,13 @@ Mat binary_thresholder(const Mat& img) {
     split(roi, hsv_channels);
     Mat v_channel = hsv_channels[2];
     Mat adapt_white_hsv;
-    adaptiveThreshold(v_channel, adapt_white_hsv, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 161, -45);
+
+    // Calcula a média de brilho para essa imagem
+    Scalar MeanGray = mean(v_channel);
+    MeanGray[0] = MeanGray[0] * 0.2;
+    // Ajustar pela média
+    adaptiveThreshold(v_channel, adapt_white_hsv, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 161, -MeanGray[0]);
+
     Mat kernel_erode = getStructuringElement(MORPH_RECT, Size(5, 5));
     erode(adapt_white_hsv, adapt_white_hsv, kernel_erode);
     medianBlur(adapt_white_hsv, adapt_white_hsv, 7);
