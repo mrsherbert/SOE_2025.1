@@ -70,6 +70,11 @@ Mat binary_thresholder(const Mat& img) {
     // Calcula a média de brilho para essa imagem
     Scalar MeanGray = mean(v_channel);
     MeanGray[0] = MeanGray[0] * 0.2;
+    // Automatizar o tamanho dos blocos
+    int v_chmin = std::min(v_channel.rows, v_channel.cols);  // Pega o menor valor das dimensões v_channel
+    int bSize = std::max(3, (v_chmin / 16) | 1);         // Garante que o valor maximo de 3 é o calculo da proporção do canal
+    // adaptiveThreshold(v_channel, adapt_white_hsv, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, bSize, -MeanGray[0]);
+
     // Ajustar pela média
     adaptiveThreshold(v_channel, adapt_white_hsv, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 161, -MeanGray[0]);
 
