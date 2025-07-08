@@ -73,7 +73,7 @@ Mat binary_thresholder(const Mat& img) {
     // Automatizar o tamanho dos blocos
     int v_chmin = std::min(v_channel.rows, v_channel.cols);  // Pega o menor valor das dimensões v_channel
     int bSize = std::max(3, (v_chmin / 16) | 1);         // Garante que o valor maximo de 3 é o calculo da proporção do canal
-    // adaptiveThreshold(v_channel, adapt_white_hsv, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, bSize, -MeanGray[0]);
+    // adaptiveThreshold(v_channel, adapt_white_hsv, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, bSize, -MeanGray[0]); // Adaptative threshold com tamanhos automatizados
 
     // Ajustar pela média
     adaptiveThreshold(v_channel, adapt_white_hsv, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 161, -MeanGray[0]);
